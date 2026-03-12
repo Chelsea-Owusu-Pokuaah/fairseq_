@@ -19,7 +19,12 @@ import faiss
 
 import fairseq
 import soundfile as sf
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+if device == 'cuda':
+    gpu=True
+else:
+    gpu=False
 
 def get_parser():
     parser = argparse.ArgumentParser(
@@ -196,7 +201,7 @@ def main():
             verbose=True,
             spherical=spec.sphere,
             max_points_per_centroid=feats.shape[0],
-            gpu=True,
+            gpu=gpu,
             nredo=3,
         )
         kmeans.train(x)
