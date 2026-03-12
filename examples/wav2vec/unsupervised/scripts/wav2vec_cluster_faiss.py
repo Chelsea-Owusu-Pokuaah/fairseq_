@@ -105,7 +105,7 @@ class Wav2VecFeatureReader(object):
     def get_feats(self, loc):
         x = self.read_audio(loc)
         with torch.no_grad():
-            source = torch.from_numpy(x).view(1, -1).float().cuda()
+            source = torch.from_numpy(x).view(1, -1).float().to(device)
             res = self.model(
                 source=source, mask=False, features_only=True, layer=self.layer
             )
@@ -160,7 +160,8 @@ def main():
         # np.save(feat_path, feats)
 
         gc.collect()
-        torch.cuda.empty_cache()
+        # torch.cuda.empty_cache()
+        torch.to(device).empty_cache()
 
     reload = False
     for spec in faiss_specs:
