@@ -92,7 +92,7 @@ class Wav2VecFeatureReader(object):
             model = task.build_model(w2v_args)
         model.load_state_dict(state["model"], strict=True)
         model.eval()
-        model.cuda()
+        model.to(device)
         self.model = model
 
     def read_audio(self, fname):
