@@ -16,7 +16,7 @@ from shutil import copyfile
 
 from npy_append_array import NpyAppendArray
 
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def get_parser():
     parser = argparse.ArgumentParser(
         description="mean pools representations by compressing uniform splits of the data"
@@ -75,7 +75,7 @@ def main():
                 end = start + length
                 feats = features[start:end]
                 start += length
-                x = torch.from_numpy(feats).cuda()
+                x = torch.from_numpy(feats).to(device)
                 target_num = math.ceil(length * args.subsample_rate)
                 rem = length % target_num
 
