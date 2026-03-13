@@ -84,13 +84,20 @@ def main():
     centroids = np.load(osp.join(args.path, "centroids.npy"))
     print("Loaded centroids", centroids.shape, file=sys.stderr)
 
-    res = faiss.StandardGpuResources()
+    # res = faiss.StandardGpuResources()
+
+    
+    
     index_flat = (
         faiss.IndexFlatL2(centroids.shape[1])
         if not faiss_spec.sphere
         else faiss.IndexFlatIP(centroids.shape[1])
     )
-    faiss_index = faiss.index_cpu_to_gpu(res, 0, index_flat)
+    if hasattr(faiss, "StandardGpuResources"):
+        res = faiss.StandardGpuResources()
+        # index = faiss.index_cpu_to_gpu(res, 0, index)
+        faiss_index = faiss.index_cpu_to_gpu(res, 0, index_flat)
+        
     faiss_index.add(centroids)
 
     generator, num, root = get_iterator(args)
