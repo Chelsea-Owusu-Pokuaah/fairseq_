@@ -8,6 +8,8 @@ fairseq:
     sort_by_length: false
     shuffle: false
     text_data: ''
+    # Phone KenLM .bin (same as GAN training); used by w2vu_generate to score hypotheses (LM PPL).
+    kenlm_path: null
 
   common_eval:
     path: ???

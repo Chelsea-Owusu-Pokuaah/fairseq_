@@ -1,20 +1,28 @@
 # @package _group_
+# All training hyperparameters are defined here. Shell scripts only pass paths (task.*),
+# common.user_dir, common.tensorboard_logdir, and optional smoke / LOCAL_MAX_UPDATE shortcuts.
 
 common:
   fp16: false
   fp16_no_flatten_grads: true
   log_format: json
   log_interval: 100
+  seed: 0
+  # Relative default; training scripts override with an absolute path.
   tensorboard_logdir: tb
   reset_logging: false
   suppress_crashes: false
 
 checkpoint:
-  save_interval: 1000
+  save_interval: 1
   save_interval_updates: 1000
   no_epoch_checkpoints: true
+  # Validation reports weighted_lm_ppl / lm_ppl (unpaired_audio_text), not train-only prob_ppl.
   best_checkpoint_metric: weighted_lm_ppl
+  maximize_best_checkpoint_metric: false
+  patience: 10
   save_dir: .
+
 
 distributed_training:
   distributed_world_size: 1
@@ -32,11 +40,11 @@ task:
 
 dataset:
   num_workers: 6
-  batch_size: 160
+  batch_size: 32 #160
   skip_invalid_size_inputs_valid_test: true
   valid_subset: valid
-  validate_interval: 1000
-  validate_interval_updates: 1000
+  validate_interval: 100000
+  validate_interval_updates: 500
 
 criterion:
   _name: model
@@ -47,45 +55,45 @@ criterion:
     - code_ppl
 
 optimization:
-  max_update: 150000
-  clip_norm: 5.0
+  max_update: 64000 #150000
+  clip_norm: 3.0
   lr: [0]
 
 optimizer:
   _name: composite
   groups:
     generator:
-      lr: [0.0004]
+      lr: [0.00001]
       lr_float: null
       optimizer:
         _name: adam
+        lr: [0.00004]
         adam_betas: [0.5,0.98]
         adam_eps: 1e-06
         weight_decay: 0
-        amsgrad: false
       lr_scheduler:
         _name: fixed
-        warmup_updates: 0
+        warmup_updates: 500
     discriminator:
-      lr: [ 0.0005 ]
+      lr: [ 0.0004 ] #0.0005
       lr_float: null
       optimizer:
         _name: adam
+        lr: [0.00002]
         adam_betas: [0.5,0.98]
         adam_eps: 1e-06
         weight_decay: 0.0001
-        amsgrad: false
       lr_scheduler:
         _name: fixed
-        warmup_updates: 0
+        warmup_updates: 1000
 
 lr_scheduler: pass_through
 
 model:
   _name: wav2vec_u
 
-  discriminator_dim: 384
-  discriminator_depth: 2
+  discriminator_dim: 128 #384
+  discriminator_depth: 2 #2
   discriminator_kernel: 6
   discriminator_linear_emb: false
   discriminator_causal: true
@@ -100,16 +108,17 @@ model:
   generator_dropout: 0.1
 
   smoothness_weight: 0.5
-  smoothing: 0
-  smoothing_one_sided: false
-  gumbel: false
-  hard_gumbel: false
-  gradient_penalty: 1.5
-  code_penalty: 4.0
+  smoothing: 0.1
+  smoothing_one_sided: true
+  gumbel: true
+  hard_gumbel: true
+  gradient_penalty: 10
+  code_penalty: 8.0
+
   temp: [ 2,0.1,0.99995 ]
   input_dim: 512
 
   segmentation:
-    type: JOIN
+    type: UNIFORM_RANDOM
     mean_pool_join: false
     remove_zeros: false

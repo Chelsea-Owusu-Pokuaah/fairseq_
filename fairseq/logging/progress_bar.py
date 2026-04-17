@@ -425,7 +425,11 @@ class TensorboardProgressBarWrapper(BaseProgressBar):
 
     def __init__(self, wrapped_bar, tensorboard_logdir):
         self.wrapped_bar = wrapped_bar
-        self.tensorboard_logdir = tensorboard_logdir
+        # Lock to absolute paths: Hydra (and multirun) changes cwd; relative tb/... breaks
+        # TensorBoard's async writer, which re-resolves paths against the current cwd.
+        self.tensorboard_logdir = os.path.abspath(
+            os.path.expanduser(tensorboard_logdir)
+        )
 
         if SummaryWriter is None:
             logger.warning(
@@ -437,7 +441,10 @@ class TensorboardProgressBarWrapper(BaseProgressBar):
             return None
         _writers = _tensorboard_writers
         if key not in _writers:
-            _writers[key] = SummaryWriter(os.path.join(self.tensorboard_logdir, key))
+            logdir = os.path.abspath(os.path.join(self.tensorboard_logdir, key))
+            # Async TensorBoard writers can race on first write; ensure the dir exists.
+            os.makedirs(logdir, exist_ok=True)
+            _writers[key] = SummaryWriter(logdir)
             _writers[key].add_text("sys.argv", " ".join(sys.argv))
         return _writers[key]
 

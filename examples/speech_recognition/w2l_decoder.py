@@ -38,12 +38,24 @@ try:
         Trie,
         LexiconDecoder,
     )
-except:
+
+    _FLASHLIGHT_AVAILABLE = True
+except ImportError:
     warnings.warn(
         "flashlight python bindings are required to use this functionality. Please install from https://github.com/facebookresearch/flashlight/tree/master/bindings/python"
     )
+    _FLASHLIGHT_AVAILABLE = False
     LM = object
     LMState = object
+    # Stubs so W2lDecoder.__init__ and imports succeed; Viterbi uses a torch fallback.
+    CpuViterbiPath = None
+    get_data_ptr_as_bytes = None
+
+    class CriterionType:
+        CTC = 0
+
+    create_word_dict = load_words = KenLM = LexiconDecoderOptions = None
+    SmearingMode = Trie = LexiconDecoder = None
 
 
 class W2lDecoder(object):
@@ -100,6 +112,13 @@ class W2lViterbiDecoder(W2lDecoder):
 
     def decode(self, emissions):
         B, T, N = emissions.size()
+        if CpuViterbiPath is None:
+            # Greedy frame-wise argmax + CTC collapse (best-path style) when Flashlight is absent.
+            viterbi_path = emissions.argmax(dim=-1).to(torch.int32)
+            return [
+                [{"tokens": self.get_tokens(viterbi_path[b].tolist()), "score": 0}]
+                for b in range(B)
+            ]
         hypos = []
         if self.asg_transitions is None:
             transitions = torch.FloatTensor(N, N).zero_()

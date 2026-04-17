@@ -373,9 +373,14 @@ def generate(cfg: UnsupGenerateConfig, models, saved_cfg, use_cuda):
     kenlm = None
     fairseq_lm = None
     if cfg.lm_model is not None:
-        import kenlm
+        import kenlm as kenlm_mod
 
-        kenlm = kenlm.Model(cfg.lm_model)
+        logger.info("| loading KenLM for hypothesis scoring from {}".format(cfg.lm_model))
+        kenlm = kenlm_mod.Model(cfg.lm_model)
+    elif getattr(task, "kenlm", None) is not None:
+        # Same phone LM as training (task.kenlm_path); used only to score hypotheses for LM PPL.
+        kenlm = task.kenlm
+        logger.info("| using task KenLM for hypothesis scoring")
 
     num_sentences = 0
     if cfg.results_path is not None and not os.path.exists(cfg.results_path):
@@ -633,6 +638,10 @@ def main(cfg: UnsupGenerateConfig, model=None):
             10, -gen_result.lm_score_t / (hyp_len + gen_result.num_sentences)
         )
         logger.info(f"LM PPL: {lm_ppl}")
+    elif gen_result.lm_score_t == 0 and gen_result.lengths_hyp_t > 0:
+        logger.info(
+            "| LM PPL not computed (no KenLM loaded; set lm_model= or fairseq.task.kenlm_path= to the phone .bin)"
+        )
 
     logger.info(
         "| Processed {} sentences ({} tokens) in {:.1f}s ({:.2f}"
@@ -657,11 +666,13 @@ def main(cfg: UnsupGenerateConfig, model=None):
     else:
         weighted_score = math.log(lm_ppl) * (vt_diff or 1.0)
 
+    lm_ppl_log = "N/A" if math.isinf(lm_ppl) else lm_ppl
+
     res = (
         f"| Generate {cfg.fairseq.dataset.gen_subset} with beam={cfg.beam}, "
         f"lm_weight={cfg.kaldi_decoder_config.acoustic_scale if cfg.kaldi_decoder_config else cfg.lm_weight}, "
         f"word_score={cfg.word_score}, sil_weight={cfg.sil_weight}, blank_weight={cfg.blank_weight}, "
-        f"WER: {wer}, LM_PPL: {lm_ppl}, num feats: {gen_result.num_feats}, "
+        f"WER: {wer}, LM_PPL: {lm_ppl_log}, num feats: {gen_result.num_feats}, "
         f"length: {gen_result.lengths_hyp_t}, UER to viterbi: {(vt_diff or 0) * 100}, score: {weighted_score}"
     )
 

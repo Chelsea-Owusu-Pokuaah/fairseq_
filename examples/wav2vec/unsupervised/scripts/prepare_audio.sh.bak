@@ -26,15 +26,6 @@ fi
 
 echo "extracting from layer $layer"
 
-if [ -z "$6" ]
-  then
-    num_clusters=128
-  else
-    num_clusters=$6
-fi
-
-echo "using $num_clusters k-means clusters"
-
 train_split=train
 valid_split=valid
 test_split=test
@@ -67,11 +58,11 @@ for split in $all_splits; do
 done
 
 python $FAIRSEQ_ROOT/examples/wav2vec/unsupervised/scripts/wav2vec_cluster_faiss.py $tgt_dir/${train_split}.tsv \
---checkpoint $model --save-dir $tgt_dir -f "CLUS${num_clusters}" --sample-pct 0.5
+--checkpoint $model --save-dir $tgt_dir -f "CLUS128" --sample-pct 0.5
 
 for split in $all_splits; do
   python $FAIRSEQ_ROOT/examples/wav2vec/unsupervised/scripts/wav2vec_apply_cluster_faiss.py $tgt_dir \
-  --checkpoint $model --path $tgt_dir/CLUS${num_clusters} --split $split
+  --checkpoint $model --path $tgt_dir/CLUS128 --split $split
 done
 
 python $FAIRSEQ_ROOT/examples/wav2vec/unsupervised/scripts/pca.py $tgt_dir/${train_split}.npy --output $tgt_dir/pca --dim $dim
@@ -79,9 +70,9 @@ python $FAIRSEQ_ROOT/examples/wav2vec/unsupervised/scripts/pca.py $tgt_dir/${tra
 for split in $all_splits; do
   python $FAIRSEQ_ROOT/examples/wav2vec/unsupervised/scripts/apply_pca.py $tgt_dir --split $split --save-dir $tgt_dir/precompute_pca$dim --pca-path $tgt_dir/pca/${dim}_pca --batch-size 32
 
-  python $FAIRSEQ_ROOT/examples/wav2vec/unsupervised/scripts/merge_clusters.py $tgt_dir/precompute_pca$dim --cluster-dir $tgt_dir/CLUS${num_clusters} \
-  --split $split --save-dir $tgt_dir/precompute_pca${dim}_cls${num_clusters}_mean --pooling mean
+  python $FAIRSEQ_ROOT/examples/wav2vec/unsupervised/scripts/merge_clusters.py $tgt_dir/precompute_pca$dim --cluster-dir $tgt_dir/CLUS128 \
+  --split $split --save-dir $tgt_dir/precompute_pca${dim}_cls128_mean --pooling mean
 
-  python $FAIRSEQ_ROOT/examples/wav2vec/unsupervised/scripts/mean_pool.py $tgt_dir/precompute_pca${dim}_cls${num_clusters}_mean \
-  --save-dir $tgt_dir/precompute_pca${dim}_cls${num_clusters}_mean_pooled --split $split
+  python $FAIRSEQ_ROOT/examples/wav2vec/unsupervised/scripts/mean_pool.py $tgt_dir/precompute_pca${dim}_cls128_mean \
+  --save-dir $tgt_dir/precompute_pca${dim}_cls128_mean_pooled --split $split
 done
